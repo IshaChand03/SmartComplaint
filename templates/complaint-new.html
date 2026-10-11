@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SmartResolve - New complaint</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div id="topbar"></div>
+
+  <div class="container">
+    <div class="panel">
+      <h2>Raise a complaint</h2>
+      <form id="complaintForm">
+        <label>Title <input type="text" id="title" maxlength="200" required></label>
+        <label>Description <textarea id="description" rows="5" required></textarea></label>
+        <label>Category <select id="category" required></select></label>
+        <label>Urgency
+          <select id="urgency">
+            <option value="1">1 - Low</option>
+            <option value="2" selected>2 - Medium</option>
+            <option value="3">3 - High</option>
+            <option value="4">4 - Very urgent</option>
+          </select>
+        </label>
+        <button type="submit">Submit complaint</button>
+      </form>
+      <div class="error" id="error"></div>
+    </div>
+  </div>
+
+  <script src="/static/js/common.js"></script>
+  <script>
+    const user = requireLogin();
+    buildTopbar(user);
+
+    async function loadCategories() {
+      const result = await api("/api/categories");
+      const select = document.getElementById("category");
+      if (!result.ok) return;
+      result.data.forEach((c) => {
+        const option = makeEl("option", c.name);
+        option.value = c.id;
+        select.appendChild(option);
+      });
+    }
+
+    document.getElementById("complaintForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const result = await api("/api/complaints", {
+        method: "POST",
+        body: JSON.stringify({
+          title: document.getElementById("title").value,
+          description: document.getElementById("description").value,
+          category_id: Number(document.getElementById("category").value),
+          urgency: Number(document.getElementById("urgency").value)
+        })
+      });
+
+      if (result.ok) {
+        window.location.href = "/complaints/" + result.data.id;
+      } else {
+        document.getElementById("error").textContent = result.data.error || "Could not submit";
+      }
+    });
+
+    loadCategories();
+  </script>
+</body>
+</html>

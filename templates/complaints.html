@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SmartResolve - Complaints</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div id="topbar"></div>
+
+  <div class="container">
+    <h2>Complaints</h2>
+
+    <div class="panel filters">
+      <input type="text" id="search" placeholder="Search title, description or reference">
+      <select id="status">
+        <option value="">All statuses</option>
+        <option>Open</option><option>Assigned</option><option>In Progress</option>
+        <option>Resolved</option><option>Closed</option><option>Escalated</option>
+      </select>
+      <select id="priority">
+        <option value="">All priorities</option>
+        <option>Low</option><option>Medium</option><option>High</option><option>Critical</option>
+      </select>
+      <button onclick="loadComplaints(1)">Search</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Reference</th><th>Title</th><th>Category</th>
+            <th>Priority</th><th>Status</th><th>SLA</th><th>Due</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="error" id="message"></div>
+
+    <div class="pager">
+      <button id="prev">Previous</button>
+      <span id="pageInfo"></span>
+      <button id="next">Next</button>
+    </div>
+  </div>
+
+  <script src="/static/js/common.js"></script>
+  <script>
+    const user = requireLogin();
+    buildTopbar(user);
+
+    let currentPage = 1;
+
+    async function loadComplaints(page) {
+      currentPage = page;
+
+      const params = new URLSearchParams({ page: page, page_size: 10 });
+      const search = document.getElementById("search").value.trim();
+      const status = document.getElementById("status").value;
+      const priority = document.getElementById("priority").value;
+      if (search) params.set("search", search);
+      if (status) params.set("status", status);
+      if (priority) params.set("priority", priority);
+
+      const result = await api("/api/complaints?" + params.toString());
+      const body = document.getElementById("rows");
+      body.replaceChildren();
+      document.getElementById("message").textContent = "";
+
+      if (!result.ok) {
+        document.getElementById("message").textContent = result.data.error || "Could not load complaints";
+        return;
+      }
+
+      const data = result.data;
+      if (data.complaints.length === 0) {
+        document.getElementById("message").textContent = "No complaints found.";
+      }
+
+      data.complaints.forEach((c) => {
+        const row = makeEl("tr");
+
+        const refCell = makeEl("td");
+        const link = makeEl("a", c.reference_no);
+        link.href = "/complaints/" + c.id;
+        refCell.appendChild(link);
+
+        const priorityCell = makeEl("td");
+        priorityCell.appendChild(makeEl("span", c.priority, "badge " + c.priority));
+
+        row.append(
+          refCell,
+          makeEl("td", c.title),
+          makeEl("td", c.category),
+          priorityCell,
+          makeEl("td", c.status),
+          makeEl("td", c.sla_state),
+          makeEl("td", formatTime(c.due_at))
+        );
+        body.appendChild(row);
+      });
+
+      const totalPages = Math.max(data.total_pages, 1);
+      document.getElementById("pageInfo").textContent =
+        "Page " + data.page + " of " + totalPages + " (" + data.total + " complaints)";
+      document.getElementById("prev").disabled = data.page <= 1;
+      document.getElementById("next").disabled = data.page >= totalPages;
+    }
+
+    document.getElementById("prev").onclick = () => loadComplaints(currentPage - 1);
+    document.getElementById("next").onclick = () => loadComplaints(currentPage + 1);
+    document.getElementById("search").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") loadComplaints(1);
+    });
+
+    loadComplaints(1);
+  </script>
+</body>
+</html>
