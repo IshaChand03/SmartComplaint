@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SmartResolve - Complaint</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="topbar"></div>
+
+  <div class="container">
+    <div class="error" id="message"></div>
+
+    <div class="panel">
+      <h2 id="title"></h2>
+      <p id="description"></p>
+      <div class="details" id="details"></div>
+    </div>
+
+    <div class="panel" id="actionsPanel">
+      <h3>Actions</h3>
+      <div class="actions" id="statusArea"></div>
+      <div class="actions" id="assignArea"></div>
+    </div>
+
+    <div class="panel">
+      <h3>Activity</h3>
+      <div id="feed"></div>
+
+      <div id="commentBox">
+        <textarea id="commentText" rows="3" maxlength="1000" placeholder="Write a comment"></textarea>
+        <button onclick="postComment()">Add comment</button>
+        <div class="error" id="commentError"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/common.js"></script>
+  <script src="js/mock-api.js"></script>
+  <script>
+    const user = requireLogin();
+    buildTopbar(user);
+
+    const complaintId = new URLSearchParams(window.location.search).get("id");
+    const NEXT_STATUS = {
+      "Assigned": "In Progress",
+      "In Progress": "Resolved",
+      "Resolved": "Closed",
+      "Escalated": "In Progress"
+    };
+
+    function showMessage(text) {
+      document.getElementById("message").textContent = text || "";
+    }
+
+    async function loadAll() {
+      const result = await api("/api/complaints/" + complaintId);
+      if (!result.ok) {
+        showMessage(result.data.error || "Could not load this complaint");
+        document.getElementById("actionsPanel").style.display = "none";
+        return;
+      }
+      const c = result.data;
+      showMessage("");
+
+      document.getElementById("title").textContent = c.reference_no + " - " + c.title;
+      document.getElementById("description").textContent = c.description;
+
+      const fields = [
+        ["Status", c.status], ["Priority", c.priority], ["Sentiment", c.sentiment],
+        ["SLA state", c.sla_state], ["Due", formatTime(c.due_at)], ["Category", c.category],
+        ["Department", c.department], ["Raised by", c.raised_by_name],
+        ["Assigned to", c.assigned_to_name || "Not assigned"], ["Created", formatTime(c.created_at)]
+      ];
+      const details = document.getElementById("details");
+      details.replaceChildren();
+      fields.forEach(([label, value]) => {
+        const box = makeEl("div");
+        box.append(makeEl("div", label, "detail-label"), makeEl("div", value));
+        details.appendChild(box);
+      });
+
+      setupStatusButton(c);
+      await setupAssign(c);
+      document.getElementById("commentBox").style.display = c.status === "Closed" ? "none" : "block";
+      await loadFeed();
+    }
+
+    function setupStatusButton(c) {
+      const area = document.getElementById("statusArea");
+      area.replaceChildren();
+
+      const next = NEXT_STATUS[c.status];
+      const staff = ["Admin", "Manager", "Support Agent"].includes(user.role);
+      const customerCanClose = user.role === "Customer" && c.status === "Resolved";
+
+      if (next && (staff || customerCanClose)) {
+        const button = makeEl("button", "Mark as " + next);
+        button.onclick = () => changeStatus(next);
+        area.appendChild(button);
+      }
+    }
+
+    async function changeStatus(newStatus) {
+      const result = await api("/api/complaints/" + complaintId + "/status", {
+        method: "PUT",
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (result.ok) {
+        loadAll();
+      } else {
+        showMessage(result.data.error || "Could not change the status");
+      }
+    }
+
+    async function setupAssign(c) {
+      const area = document.getElementById("assignArea");
+      area.replaceChildren();
+
+      const canAssign = ["Admin", "Manager"].includes(user.role) &&
+                        !["Resolved", "Closed"].includes(c.status);
+      if (!canAssign) return;
+
+      const result = await api("/api/agents?department_id=" + c.department_id);
+      if (!result.ok) return;
+
+      if (result.data.length === 0) {
+        area.appendChild(makeEl("span", "No agents in this department yet."));
+        return;
+      }
+
+      area.appendChild(makeEl("span", "Assign to:"));
+      const select = makeEl("select");
+      select.id = "agentSelect";
+      result.data.forEach((agent) => {
+        const option = makeEl("option", agent.name);
+        option.value = agent.id;
+        select.appendChild(option);
+      });
+      const button = makeEl("button", "Assign");
+      button.onclick = assignAgent;
+      area.append(select, button);
+    }
+
+    async function assignAgent() {
+      const agentId = Number(document.getElementById("agentSelect").value);
+      const result = await api("/api/complaints/" + complaintId + "/assign", {
+        method: "PUT",
+        body: JSON.stringify({ agent_id: agentId })
+      });
+      if (result.ok) {
+        loadAll();
+      } else {
+        showMessage(result.data.error || "Could not assign");
+      }
+    }
+
+    async function loadFeed() {
+      const result = await api("/api/complaints/" + complaintId + "/history");
+      const feed = document.getElementById("feed");
+      feed.replaceChildren();
+      if (!result.ok) return;
+
+      result.data.forEach((item) => {
+        const who = item.actor + (item.role ? " (" + item.role + ")" : "");
+        const entry = makeEl("div", null, "feed-item " + item.type);
+        entry.append(
+          makeEl("div", formatTime(item.time) + "  -  " + who, "feed-meta"),
+          makeEl("div", item.text)
+        );
+        feed.appendChild(entry);
+      });
+    }
+
+    async function postComment() {
+      const box = document.getElementById("commentText");
+      const errorBox = document.getElementById("commentError");
+      errorBox.textContent = "";
+
+      const result = await api("/api/complaints/" + complaintId + "/comments", {
+        method: "POST",
+        body: JSON.stringify({ comment: box.value })
+      });
+      if (result.ok) {
+        box.value = "";
+        loadFeed();
+      } else {
+        errorBox.textContent = result.data.error || "Could not add the comment";
+      }
+    }
+
+    loadAll();
+  </script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SmartResolve - Queues</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="topbar"></div>
+
+  <div class="container">
+    <h2>Queues and tracking</h2>
+    <div class="tabs" id="tabs"></div>
+    <div class="error" id="message"></div>
+    <p class="note" id="summary"></p>
+    <div id="content"></div>
+  </div>
+
+  <script src="js/common.js"></script>
+  <script src="js/mock-api.js"></script>
+  <script>
+    const user = requireLogin();
+    buildTopbar(user);
+
+    const content = document.getElementById("content");
+    const summary = document.getElementById("summary");
+    const messageBox = document.getElementById("message");
+
+    const complaintHeaders = ["Reference", "Title", "Priority", "Status", "SLA", "Due"];
+
+    function complaintRow(c) {
+      return [
+        makeLink(c.reference_no, "/complaints/" + c.id),
+        c.title,
+        makeBadge(c.priority),
+        c.status,
+        c.sla_state,
+        formatTime(c.due_at)
+      ];
+    }
+
+    function showError(result) {
+      messageBox.textContent = result.data.error || result.data.msg || "Could not load data";
+    }
+
+    async function loadMyQueue() {
+      const result = await api("/api/dashboard/my-queue");
+      if (!result.ok) return showError(result);
+      summary.textContent = "Unfinished complaints assigned to you: " + result.data.count;
+      renderTable(content, complaintHeaders, result.data.complaints.map(complaintRow));
+    }
+
+    async function loadSla() {
+      const result = await api("/api/dashboard/sla");
+      if (!result.ok) return showError(result);
+      const d = result.data;
+      summary.textContent =
+        "Within: " + d.within_count + "   |   Near: " + d.near_count + "   |   Breached: " + d.breached_count;
+      const all = [...d.breached, ...d.near, ...d.within];
+      renderTable(content, complaintHeaders, all.map(complaintRow));
+    }
+
+    async function loadEscalations() {
+      const result = await api("/api/dashboard/escalations");
+      if (!result.ok) return showError(result);
+      summary.textContent = "Escalations: " + result.data.count;
+      const rows = result.data.escalations.map((e) => [
+        makeLink(e.reference_no, "/complaints/" + e.complaint_id),
+        e.title,
+        makeBadge(e.priority),
+        e.level,
+        e.manager,
+        e.reason,
+        formatTime(e.escalated_at)
+      ]);
+      renderTable(content, ["Reference", "Title", "Priority", "Level", "Manager", "Reason", "Escalated at"], rows);
+    }
+
+    const tabs = [
+      ["My Queue", loadMyQueue],
+      ["SLA Tracking", loadSla],
+      ["Escalations", loadEscalations]
+    ];
+
+    const bar = document.getElementById("tabs");
+    tabs.forEach(([name, loader]) => {
+      const button = makeEl("button", name);
+      button.onclick = () => {
+        [...bar.children].forEach((b) => b.classList.remove("active"));
+        button.classList.add("active");
+        messageBox.textContent = "";
+        summary.textContent = "";
+        loader();
+      };
+      bar.appendChild(button);
+    });
+    bar.firstChild.click();
+  </script>
+</body>
+</html>

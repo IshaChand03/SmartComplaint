@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SmartResolve - Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="topbar"></div>
+
+  <div class="container">
+    <h2>Dashboard</h2>
+    <div class="role-banner" id="banner"></div>
+    <div class="quick" id="quick"></div>
+    <div class="cards" id="cards"></div>
+
+    <div class="two-col">
+      <div class="panel"><h3>By Priority</h3><div id="byPriority"></div></div>
+      <div class="panel"><h3>By Status</h3><div id="byStatus"></div></div>
+    </div>
+  </div>
+
+  <script src="js/common.js"></script>
+  <script src="js/mock-api.js"></script>
+  <script>
+    const user = requireLogin();
+    buildTopbar(user);
+
+    const BANNERS = {
+      "Admin": "System Admin: full visibility",
+      "Manager": "Manager: your department's complaints",
+      "Support Agent": "Support Agent: complaints assigned to you",
+      "Customer": "Customer: your own complaints"
+    };
+    document.getElementById("banner").textContent = BANNERS[user.role] || "";
+
+    // Quick buttons
+    const quick = document.getElementById("quick");
+    const buttons = [
+      ["Raise complaint", "/complaints/new", "btn-blue"],
+      ["All complaints", "/complaints", "btn-orange"],
+      ["Queues", "/queues", "btn-teal"]
+    ];
+    if (user.role === "Admin") buttons.push(["Admin config", "/admin", "btn-purple"]);
+    buttons.forEach(([label, href, color]) => {
+      const link = makeLink(label, href);
+      link.className = "btn-link " + color;
+      quick.appendChild(link);
+    });
+
+    // Draws one coloured bar per item
+    function drawBars(container, counts, colors, total) {
+      container.replaceChildren();
+      Object.keys(counts).forEach((name) => {
+        const percent = total > 0 ? (counts[name] / total) * 100 : 0;
+
+        const track = makeEl("div", null, "bar-track");
+        const fill = makeEl("div", null, "bar-fill");
+        fill.style.width = percent + "%";
+        fill.style.background = colors[name] || "#64748b";
+        track.appendChild(fill);
+
+        const row = makeEl("div", null, "bar-row");
+        row.append(makeEl("span", name, "bar-label"), track, makeEl("span", counts[name], "bar-count"));
+        container.appendChild(row);
+      });
+    }
+
+    const PRIORITY_COLORS = { Low: "#16a34a", Medium: "#ca8a04", High: "#ea580c", Critical: "#dc2626" };
+    const STATUS_COLORS = {
+      "Open": "#2f9e44", "Assigned": "#7048e8", "In Progress": "#1c7ed6",
+      "Resolved": "#0c8599", "Closed": "#64748b", "Escalated": "#e67700"
+    };
+
+    async function loadDashboard() {
+      const result = await api("/api/dashboard");
+      if (!result.ok) return;
+      const d = result.data;
+
+      const items = [
+        ["Total", d.total, "c-total"], ["Open", d.open, "c-open"],
+        ["In Progress", d.in_progress, "c-progress"], ["Resolved", d.resolved, "c-resolved"],
+        ["Escalated", d.escalated, "c-escalated"], ["SLA Breached", d.breached, "c-breached"]
+      ];
+
+      const cards = document.getElementById("cards");
+      items.forEach(([label, value, color]) => {
+        const card = makeEl("div", null, "card " + color);
+        card.append(makeEl("div", value, "num"), makeEl("div", label));
+        cards.appendChild(card);
+      });
+
+      drawBars(document.getElementById("byPriority"), d.by_priority, PRIORITY_COLORS, d.total);
+      drawBars(document.getElementById("byStatus"), d.by_status, STATUS_COLORS, d.total);
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

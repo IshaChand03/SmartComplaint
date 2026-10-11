@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SmartResolve - Admin</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="topbar"></div>
+
+  <div class="container">
+    <h2>Admin configuration</h2>
+    <div class="tabs" id="tabs"></div>
+    <div id="message"></div>
+    <div id="content"></div>
+  </div>
+
+  <script src="js/common.js"></script>
+  <script src="js/mock-api.js"></script>
+  <script>
+    const user = requireLogin();
+    buildTopbar(user);
+
+    const content = document.getElementById("content");
+    const messageBox = document.getElementById("message");
+    const ROLES = ["Admin", "Manager", "Support Agent", "Customer"];
+    let departments = [];
+
+    function showMessage(text, good) {
+      messageBox.textContent = text || "";
+      messageBox.className = good ? "success" : "error";
+    }
+
+    // Shows the server's answer after a Save/Add button
+    function report(result, fallbackText) {
+      if (result.ok) {
+        showMessage(result.data.message || fallbackText, true);
+      } else {
+        showMessage(result.data.error || result.data.msg || "Something went wrong", false);
+      }
+    }
+
+    async function loadDepartmentList() {
+      const result = await api("/api/departments");
+      if (result.ok) departments = result.data;
+    }
+
+    // A small box with a title and a row of controls (used for "Add ..." forms)
+    function addPanel(title, controls) {
+      const panel = makeEl("div", null, "panel");
+      panel.appendChild(makeEl("h3", title));
+      const row = makeEl("div", null, "actions");
+      controls.forEach((c) => row.appendChild(c));
+      panel.appendChild(row);
+      return panel;
+    }
+
+    // ---------- Users ----------
+    async function loadUsers() {
+      const result = await api("/api/admin/users");
+      if (!result.ok) return report(result);
+
+      const deptOptions = [["", "None"]].concat(departments.map((d) => [d.id, d.name]));
+
+      const rows = result.data.map((u) => {
+        const roleSelect = makeSelect(ROLES.map((r) => [r, r]), u.role);
+        const deptSelect = makeSelect(deptOptions, u.department_id === null ? "" : u.department_id);
+        const save = makeButton("Save", async () => {
+          const res = await api("/api/admin/users/" + u.id, {
+            method: "PUT",
+            body: JSON.stringify({
+              role: roleSelect.value,
+              department_id: deptSelect.value === "" ? null : Number(deptSelect.value)
+            })
+          });
+          report(res, "User updated");
+        });
+        return [u.id, u.name, u.email, roleSelect, deptSelect, save];
+      });
+
+      renderTable(content, ["ID", "Name", "Email", "Role", "Department", ""], rows);
+      content.appendChild(makeEl("p", "A user must log in again to get a new role.", "note"));
+    }
+
+    // ---------- Categories ----------
+    async function loadCategories() {
+      const result = await api("/api/categories");
+      if (!result.ok) return report(result);
+
+      const rows = result.data.map((c) => {
+        const critical = makeInput("checkbox");
+        critical.checked = c.is_critical;
+        const save = makeButton("Save", async () => {
+          const res = await api("/api/admin/categories/" + c.id, {
+            method: "PUT",
+            body: JSON.stringify({ is_critical: critical.checked })
+          });
+          report(res, "Category updated");
+        });
+        return [c.name, c.department, critical, save];
+      });
+      renderTable(content, ["Category", "Department", "Critical", ""], rows);
+
+      const nameInput = makeInput("text", "New category name");
+      const deptSelect = makeSelect(departments.map((d) => [d.id, d.name]), "");
+      const critBox = makeInput("checkbox");
+      const critLabel = makeEl("label", " Critical");
+      critLabel.prepend(critBox);
+      const add = makeButton("Add category", async () => {
+        const res = await api("/api/admin/categories", {
+          method: "POST",
+          body: JSON.stringify({
+            name: nameInput.value,
+            department_id: Number(deptSelect.value),
+            is_critical: critBox.checked
+          })
+        });
+        report(res, "Category created");
+        if (res.ok) loadCategories();
+      });
+      content.appendChild(addPanel("Add a category", [nameInput, deptSelect, critLabel, add]));
+    }
+
+    // ---------- SLA rules ----------
+    async function loadSlaRules() {
+      const result = await api("/api/admin/sla-rules");
+      if (!result.ok) return report(result);
+
+      const rows = result.data.map((r) => {
+        const resolution = makeNumber(r.resolution_hours, 1);
+        const near = makeNumber(r.near_breach_hours, 1);
+        const save = makeButton("Save", async () => {
+          const res = await api("/api/admin/sla-rules/" + r.priority, {
+            method: "PUT",
+            body: JSON.stringify({
+              resolution_hours: Number(resolution.value),
+              near_breach_hours: Number(near.value)
+            })
+          });
+          report(res, "SLA rule updated");
+        });
+        return [makeBadge(r.priority), resolution, near, save];
+      });
+      renderTable(content, ["Priority", "Resolution hours", "Near-breach hours", ""], rows);
+      content.appendChild(makeEl("p", "Changes apply only to complaints raised after the change.", "note"));
+    }
+
+    // ---------- Escalation rules ----------
+    async function loadEscalationRules() {
+      const result = await api("/api/admin/escalation-rules");
+      if (!result.ok) return report(result);
+
+      const rows = result.data.map((r) => {
+        const grace = makeNumber(r.grace_hours, 0);
+        const level = makeNumber(r.escalation_level, 1);
+        const target = makeSelect([["Manager", "Manager"], ["Admin", "Admin"]], r.target_role);
+        const save = makeButton("Save", async () => {
+          const res = await api("/api/admin/escalation-rules/" + r.priority, {
+            method: "PUT",
+            body: JSON.stringify({
+              grace_hours: Number(grace.value),
+              escalation_level: Number(level.value),
+              target_role: target.value
+            })
+          });
+          report(res, "Escalation rule updated");
+        });
+        return [makeBadge(r.priority), grace, level, target, save];
+      });
+      renderTable(content, ["Priority", "Grace hours", "Level", "Target role", ""], rows);
+    }
+
+    // ---------- Departments ----------
+    async function loadDepartments() {
+      await loadDepartmentList();
+
+      const rows = departments.map((d) => {
+        const nameInput = makeInput("text", "", d.name);
+        const save = makeButton("Save", async () => {
+          const res = await api("/api/admin/departments/" + d.id, {
+            method: "PUT",
+            body: JSON.stringify({ name: nameInput.value })
+          });
+          report(res, "Department updated");
+          if (res.ok) loadDepartmentList();
+        });
+        return [d.id, nameInput, save];
+      });
+      renderTable(content, ["ID", "Name", ""], rows);
+
+      const newName = makeInput("text", "New department name");
+      const add = makeButton("Add department", async () => {
+        const res = await api("/api/admin/departments", {
+          method: "POST",
+          body: JSON.stringify({ name: newName.value })
+        });
+        report(res, "Department created");
+        if (res.ok) loadDepartments();
+      });
+      content.appendChild(addPanel("Add a department", [newName, add]));
+    }
+
+    // ---------- Audit log ----------
+    async function loadAudit(page) {
+      const result = await api("/api/admin/audit-logs?page=" + page + "&page_size=15");
+      if (!result.ok) return report(result);
+      const d = result.data;
+
+      const rows = d.logs.map((l) => [
+        formatTime(l.created_at),
+        l.action_name,
+        l.entity_type + (l.entity_id ? " #" + l.entity_id : ""),
+        l.details,
+        l.done_by
+      ]);
+      renderTable(content, ["Time", "Action", "Entity", "Details", "Done by"], rows);
+
+      const totalPages = Math.max(d.total_pages, 1);
+      const prev = makeButton("Previous", () => loadAudit(page - 1));
+      const next = makeButton("Next", () => loadAudit(page + 1));
+      prev.disabled = page <= 1;
+      next.disabled = page >= totalPages;
+
+      const pager = makeEl("div", null, "pager");
+      pager.append(prev, makeEl("span", "Page " + page + " of " + totalPages), next);
+      content.appendChild(pager);
+    }
+
+    // ---------- Tabs ----------
+    const tabs = [
+      ["Users", loadUsers],
+      ["Categories", loadCategories],
+      ["SLA rules", loadSlaRules],
+      ["Escalation rules", loadEscalationRules],
+      ["Departments", loadDepartments],
+      ["Audit log", () => loadAudit(1)]
+    ];
+
+    async function start() {
+      await loadDepartmentList();
+      const bar = document.getElementById("tabs");
+      tabs.forEach(([name, loader]) => {
+        const button = makeEl("button", name);
+        button.onclick = () => {
+          [...bar.children].forEach((b) => b.classList.remove("active"));
+          button.classList.add("active");
+          showMessage("");
+          loader();
+        };
+        bar.appendChild(button);
+      });
+      bar.firstChild.click();
+    }
+
+    if (user.role !== "Admin") {
+      showMessage("Only an Admin can open this page.", false);
+    } else {
+      start();
+    }
+  </script>
+</body>
+</html>

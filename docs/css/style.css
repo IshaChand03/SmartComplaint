@@ -1,0 +1,153 @@
+* { box-sizing: border-box; }
+
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: #f1f5f9;
+  margin: 0;
+  color: #1f2937;
+}
+/* Login and register pages get a colorful background */
+body:has(.box) {
+  background: linear-gradient(135deg, #1e3a8a 0%, #7c3aed 100%);
+  min-height: 100vh;
+}
+body.with-sidebar { padding-left: 240px; }
+
+h1, h2, h3 { margin-top: 0; }
+a { color: #2563eb; }
+
+/* ---------- Login and register ---------- */
+.box {
+  max-width: 380px; margin: 80px auto; background: #fff; padding: 30px;
+  border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.25);
+}
+.box h1 { color: #1e3a8a; }
+
+/* ---------- Forms ---------- */
+label { display: block; margin-top: 12px; font-size: 14px; }
+input, textarea, select {
+  width: 100%; padding: 9px; margin-top: 4px; border: 1px solid #d1d5db;
+  border-radius: 8px; font-family: inherit;
+}
+input:focus, textarea:focus, select:focus { outline: 2px solid #93c5fd; border-color: #2563eb; }
+button {
+  margin-top: 16px; padding: 10px 16px; color: #fff; border: 0; border-radius: 8px;
+  cursor: pointer; font-weight: 600;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+}
+button:hover { opacity: .9; }
+button:disabled { background: #9ca3af; cursor: not-allowed; opacity: 1; }
+.error { color: #b91c1c; margin-top: 10px; min-height: 18px; }
+.success { color: #15803d; margin-top: 10px; }
+.note { color: #6b7280; font-size: 13px; }
+
+/* ---------- Sidebar (left menu) ---------- */
+.sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0; width: 240px;
+  background: #1e293b; color: #fff; display: flex; flex-direction: column;
+  overflow-y: auto; z-index: 10;
+}
+.sidebar .brand {
+  padding: 20px; font-size: 21px; font-weight: bold;
+  border-bottom: 1px solid rgba(255,255,255,.12); margin-bottom: 10px;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+}
+.sidebar a {
+  display: block; padding: 12px 16px; margin: 4px 12px; color: #cbd5e1;
+  text-decoration: none; border-radius: 8px; font-size: 15px;
+}
+.sidebar a:hover { background: rgba(255,255,255,.1); color: #fff; }
+.sidebar a.active { background: #2563eb; color: #fff; font-weight: 600; }
+
+/* ---------- Header on the right (user name and log out) ---------- */
+.topbar {
+  background: #fff; padding: 12px 24px; display: flex; justify-content: flex-end;
+  align-items: center; gap: 12px; border-bottom: 1px solid #e5e7eb;
+}
+.topbar .who { font-weight: 600; }
+.role-tag { background: #ede9fe; color: #6d28d9; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+.topbar button { margin: 0; background: #ef4444; }
+
+/* ---------- Page layout ---------- */
+.container { max-width: 1100px; margin: 20px auto; padding: 0 20px; }
+.panel {
+  background: #fff; padding: 18px; border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.07); margin-bottom: 16px;
+}
+.panel h3 { margin-top: 0; }
+.two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+
+/* ---------- Dashboard ---------- */
+.role-banner {
+  background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe;
+  padding: 12px 16px; border-radius: 10px; margin-bottom: 14px; font-weight: 600;
+}
+.quick { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.btn-link {
+  padding: 10px 16px; border-radius: 8px; color: #fff; text-decoration: none; font-weight: 600;
+}
+.btn-blue { background: #2563eb; }
+.btn-orange { background: #d97706; }
+.btn-purple { background: #7c3aed; }
+.btn-teal { background: #0d9488; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin: 16px 0; }
+.card { color: #fff; padding: 18px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,.15); }
+.card .num { font-size: 32px; font-weight: bold; }
+.c-total { background: #3b5bdb; }
+.c-open { background: #2f9e44; }
+.c-progress { background: #1c7ed6; }
+.c-resolved { background: #0c8599; }
+.c-escalated { background: #e67700; }
+.c-breached { background: #c92a2a; }
+
+.bar-row { display: flex; align-items: center; gap: 12px; margin: 10px 0; }
+.bar-label { width: 90px; color: #4b5563; font-size: 14px; }
+.bar-track { flex: 1; background: #e5e7eb; border-radius: 6px; height: 12px; }
+.bar-fill { height: 12px; border-radius: 6px; }
+.bar-count { width: 30px; text-align: right; font-weight: bold; }
+
+/* ---------- Tables ---------- */
+.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.filters input, .filters select { width: auto; margin-top: 0; }
+.filters button { margin-top: 0; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; }
+th, td { padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: left; font-size: 14px; }
+th { background: #eef2ff; color: #3730a3; }
+tr:hover td { background: #f8fafc; }
+td input, td select { width: auto; margin-top: 0; }
+.num-input { width: 90px; }
+input[type="checkbox"] { width: auto; margin: 0 6px 0 0; }
+
+.badge { padding: 2px 10px; border-radius: 10px; font-size: 12px; color: #fff; background: #6b7280; }
+.badge.Low { background: #16a34a; }
+.badge.Medium { background: #ca8a04; }
+.badge.High { background: #ea580c; }
+.badge.Critical { background: #dc2626; }
+
+.pager { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
+.pager button { margin-top: 0; }
+
+/* ---------- Complaint details ---------- */
+.details { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.detail-label { font-size: 12px; color: #6b7280; }
+.feed-item { border-left: 4px solid #9ca3af; background: #f8fafc; padding: 8px 12px; margin: 8px 0; border-radius: 6px; }
+.feed-item.comment { border-left-color: #2563eb; background: #eff6ff; }
+.feed-meta { font-size: 12px; color: #6b7280; }
+.actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.actions select, .actions button, .actions input { width: auto; margin-top: 0; }
+.actions label { margin-top: 0; display: flex; align-items: center; }
+
+/* ---------- Tabs ---------- */
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.tabs button { margin-top: 0; background: #e5e7eb; color: #1f2937; }
+.tabs button.active { background: linear-gradient(135deg, #2563eb, #7c3aed); color: #fff; }
+
+/* ---------- Small screens: sidebar becomes a top menu ---------- */
+@media (max-width: 800px) {
+  body.with-sidebar { padding-left: 0; }
+  .sidebar { position: static; width: 100%; flex-direction: row; flex-wrap: wrap; }
+  .sidebar .brand { width: 100%; margin-bottom: 0; }
+  .sidebar a { margin: 4px; }
+}
