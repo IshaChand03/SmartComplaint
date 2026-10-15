@@ -155,7 +155,7 @@ function buildTopbar(user) {
   if (user.role === "Admin") links.push(["⚙️", "Admin", "/admin"]);
 
   const sidebar = makeEl("nav", null, "sidebar");
-  sidebar.appendChild(makeEl("div", "SmartResolve", "brand"));
+  sidebar.appendChild(makeEl("div", "SmartComplaint", "brand"));
   links.forEach(([icon, label, href]) => {
     const link = makeLink(icon + "  " + label, href);
     if (isActive(href)) link.classList.add("active");

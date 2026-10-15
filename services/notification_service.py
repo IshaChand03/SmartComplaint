@@ -36,7 +36,7 @@ def send_notification(cursor, complaint_id, recipient_id, event, message):
         # Channel 1: Email
         if Config.EMAIL_ENABLED:
             try:
-                _send_email(user["email"], f"SmartResolve: {event}", message)
+                _send_email(user["email"], f"SmartComplaint: {event}", message)
                 email_status = "Sent"
             except Exception as error:
                 print(f"[Notification] Email failed: {error}")

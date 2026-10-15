@@ -1,7 +1,7 @@
-🔗 **Live demo:** https://ishachand03.github.io/SmartResolve/
+🔗 **Live demo:** https://ishachand03.github.io/SmartComplaint/
 
 The live demo is a browser-only version with sample data (login: `isha@test.com`, password `123456`). The full application, with Flask and MySQL, is in this repository.
-# SmartResolve
+# SmartComplaint
 
 A complaint and ticket management system built with Python Flask, MySQL, HTML, CSS and JavaScript.
 
